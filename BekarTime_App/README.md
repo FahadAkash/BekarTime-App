@@ -1,6 +1,6 @@
-# React Native Expo Project - README
+# BekarTime App - README
 
-This project is a React Native application built with Expo, designed to showcase a modern mobile app with environment configuration, API integration, and Google services.
+This project is a React Native application built with Expo,  
 
 ## 🚀 Getting Started
 
@@ -16,8 +16,8 @@ Follow these instructions to set up the project on your local machine.
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/your-project-name.git
-   cd your-project-name
+   git clone https://github.com/FahadAkash/BekarTime-App.git
+   cd BekarTime_App
    ```
 
 2. **Install dependencies**:
@@ -38,7 +38,7 @@ Follow these instructions to set up the project on your local machine.
 
 Start the development server:
 ```bash
-npm start
+npx expo start
 ```
 
 You can then:
@@ -50,7 +50,7 @@ You can then:
 
 To create a production build:
 ```bash
-npm run build
+eas build -p android --profile preview
 ```
 
 ## 📁 Project Structure
@@ -69,7 +69,7 @@ project-root/
 ├── store/                 # State management (Redux/Zustand)
 ├── theme/                 # Styling and theming
 ├── utils/                 # Utility functions
-├── App.js                 # Main application component
+├── App.tsx                 # Main application component
 └── package.json           # Project dependencies
 ```
 
@@ -88,11 +88,10 @@ The application uses the following environment variables:
 
 Key dependencies used in this project:
 
-- **React Navigation** - Routing and navigation
-- **Axios** - HTTP client for API requests
+- **React Navigation** - Routing and navigation 
 - **React Native Maps** - Map integration (requires Google API key)
 - **Reanimated** - Smooth animations
-- **Zustand** (or Redux) - State management
+
 - **dotenv** - Environment variable management
 
 ## 🤝 Contributing
@@ -109,4 +108,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## 📧 Contact
 
-For support or questions, contact [your-email@example.com](mailto:your-email@example.com)
+For support or questions, contact [fahadakash@protonmail.com](mailto:fahadakash@protonmail.com)
