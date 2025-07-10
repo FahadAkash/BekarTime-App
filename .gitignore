@@ -1,5 +1,6 @@
 # Ignore only node_modules inside TrafficeChatNew/TrafficeChat
 BekarTime_App/node_modules/
+BekarTime_App/MainApp.tsx/
 
 
 # Ignore entire TrafficeChatApp_Old directory
