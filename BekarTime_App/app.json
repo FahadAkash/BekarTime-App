@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "BekarTime",
+    "slug": "BekarTime",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "YOUR_IOS_API_KEY"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.fahadakash.BekarTime",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBHR-dXAEvmqVyxGTAwAZ_oWiEEVHWzBGw"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c7b8e2da-a82b-4223-b370-c2f4c82ee86c"
+      }
+    }
+  }
+}

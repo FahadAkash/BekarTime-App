@@ -1,0 +1,6 @@
+# Ignore only node_modules inside TrafficeChatNew/TrafficeChat
+BekarTime_App/node_modules/
+
+
+# Ignore entire TrafficeChatApp_Old directory
+TrafficeChatApp_Old/node_modules/

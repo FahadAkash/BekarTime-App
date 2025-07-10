@@ -1,0 +1,195 @@
+service: location-chat-app
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    CHAT_ROOMS_TABLE: ${self:service}-${self:provider.stage}-chat-rooms
+    CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
+    MESSAGES_TABLE: ${self:service}-${self:provider.stage}-messages
+    WEBSOCKET_ENDPOINT: !Sub 'wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - !GetAtt ChatRoomsTable.Arn
+            - !GetAtt ConnectionsTable.Arn
+            - !GetAtt MessagesTable.Arn
+            - !Sub '${ConnectionsTable.Arn}/index/*'
+        - Effect: Allow
+          Action:
+            - execute-api:ManageConnections
+          Resource:
+            - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebsocketsApi}/*'
+
+functions:
+  # WebSocket Functions
+  connectHandler:
+    handler: lambda/handlers/chatRoomHandler.connectHandler
+    events: 
+      - websocket:
+          route: $connect
+
+  disconnectHandler:
+    handler: lambda/handlers/chatRoomHandler.disconnectHandler
+    events:
+      - websocket:
+          route: $disconnect
+
+  messageHandler:
+    handler: lambda/handlers/chatRoomHandler.messageHandler
+    events:
+      - websocket:
+          route: $default
+
+  # HTTP API Functions
+  createRoom:
+    handler: lambda/handlers/chatRoomHandler.createRoomHandler
+    events:
+      - httpApi:
+          path: /create-room
+          method: post
+          cors: true
+
+  searchRooms:
+    handler: lambda/handlers/chatRoomHandler.searchRoomsHandler
+    events:
+      - httpApi:
+          path: /search-rooms
+          method: get
+          cors: true
+
+  joinRoom:
+    handler: lambda/handlers/chatRoomHandler.joinRoomHandler
+    events:
+      - httpApi:
+          path: /join-room
+          method: post
+          cors: true
+
+  closeRoom:
+    handler: lambda/handlers/chatRoomHandler.closeRoomHandler
+    events:
+      - httpApi:
+          path: /close-room
+          method: post
+          cors: true
+
+  # Enhanced cleanup schedule
+  cleanupRooms:
+    handler: lambda/handlers/chatRoomHandler.cleanupHandler
+    events:
+      - schedule:
+          rate: rate(5 minutes)
+          enabled: true
+    timeout: 300
+    memorySize: 1024
+
+resources:
+  Resources:
+    # Chat Rooms Table
+    ChatRoomsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CHAT_ROOMS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: status
+            AttributeType: S
+          - AttributeName: lastActivity
+            AttributeType: N
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: StatusLastActivityIndex
+            KeySchema:
+              - AttributeName: status
+                KeyType: HASH
+              - AttributeName: lastActivity
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        SSESpecification:
+          SSEEnabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    # Connections Table
+    ConnectionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CONNECTIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: UserIdIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        SSESpecification:
+          SSEEnabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    # Messages Table
+    MessagesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.MESSAGES_TABLE}
+        AttributeDefinitions:
+          - AttributeName: roomId
+            AttributeType: S
+          - AttributeName: messageId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: roomId
+            KeyType: HASH
+          - AttributeName: messageId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+        SSESpecification:
+          SSEEnabled: true
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+  Outputs:
+    WebSocketURI:
+      Description: "WebSocket URI"
+      Value: !Sub 'wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
+    
+    HttpApiURI:
+      Description: "HTTP API URI"
+      Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+    
+    ChatRoomsTableName:
+      Description: "Chat Rooms Table Name"
+      Value: !Ref ChatRoomsTable
+
+plugins:
+  - serverless-offline

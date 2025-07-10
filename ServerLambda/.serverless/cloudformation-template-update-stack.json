@@ -1,0 +1,1508 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "ServerlessDeploymentBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ServerlessDeploymentBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "ServerlessDeploymentBucket"
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ConnectHandlerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-connectHandler"
+      }
+    },
+    "DisconnectHandlerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-disconnectHandler"
+      }
+    },
+    "MessageHandlerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-messageHandler"
+      }
+    },
+    "CreateRoomLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-createRoom"
+      }
+    },
+    "SearchRoomsLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-searchRooms"
+      }
+    },
+    "JoinRoomLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-joinRoom"
+      }
+    },
+    "CloseRoomLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-closeRoom"
+      }
+    },
+    "CleanupRoomsLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/location-chat-app-beta-cleanupRooms"
+      }
+    },
+    "IamRoleLambdaExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Join": [
+                "-",
+                [
+                  "location-chat-app",
+                  "beta",
+                  "lambda"
+                ]
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:CreateLogGroup",
+                    "logs:TagResource"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/location-chat-app-beta*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/location-chat-app-beta*:*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ChatRoomsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ConnectionsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "MessagesTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Sub": "${ConnectionsTable.Arn}/index/*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "execute-api:ManageConnections"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebsocketsApi}/*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "execute-api:ManageConnections"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:execute-api:*:*:*/@connections/*"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Path": "/",
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              "location-chat-app",
+              "beta",
+              {
+                "Ref": "AWS::Region"
+              },
+              "lambdaRole"
+            ]
+          ]
+        }
+      }
+    },
+    "ConnectHandlerLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.connectHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-connectHandler",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "ConnectHandlerLogGroup"
+      ]
+    },
+    "DisconnectHandlerLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.disconnectHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-disconnectHandler",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "DisconnectHandlerLogGroup"
+      ]
+    },
+    "MessageHandlerLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.messageHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-messageHandler",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "MessageHandlerLogGroup"
+      ]
+    },
+    "CreateRoomLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.createRoomHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-createRoom",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "CreateRoomLogGroup"
+      ]
+    },
+    "SearchRoomsLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.searchRoomsHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-searchRooms",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "SearchRoomsLogGroup"
+      ]
+    },
+    "JoinRoomLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.joinRoomHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-joinRoom",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "JoinRoomLogGroup"
+      ]
+    },
+    "CloseRoomLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.closeRoomHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-closeRoom",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "CloseRoomLogGroup"
+      ]
+    },
+    "CleanupRoomsLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/location-chat-app/beta/1752082806487-2025-07-09T17:40:06.487Z/location-chat-app.zip"
+        },
+        "Handler": "lambda/handlers/chatRoomHandler.cleanupHandler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "location-chat-app-beta-cleanupRooms",
+        "MemorySize": 1024,
+        "Timeout": 300,
+        "Environment": {
+          "Variables": {
+            "CHAT_ROOMS_TABLE": "location-chat-app-beta-chat-rooms",
+            "CONNECTIONS_TABLE": "location-chat-app-beta-connections",
+            "MESSAGES_TABLE": "location-chat-app-beta-messages",
+            "WEBSOCKET_ENDPOINT": {
+              "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "CleanupRoomsLogGroup"
+      ]
+    },
+    "ConnectHandlerLambdaVersioncz3bvgROoswYRwRtXfhTm0blfbDpBPHsEQI178qC1c": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "ConnectHandlerLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "DisconnectHandlerLambdaVersionSuHxtXl7rmRs7b98SmvU6zhJydxGiwWDfqC9uT1yg": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "DisconnectHandlerLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "MessageHandlerLambdaVersionTgJCaEJWv5jaol2ObTcr9hv5UZ7hhGDSzCTdudDGio": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "MessageHandlerLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "CreateRoomLambdaVersioniZB5tC59wmxDVrWMDCfol6EoXIPxCs5IBgeTqFM": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "CreateRoomLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "SearchRoomsLambdaVersionNo8mCYt5oAUsEUIEMwmv5SLs0XIDghpCJWRKlFU": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "SearchRoomsLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "JoinRoomLambdaVersionr7oSXDNBI5lslcNIMldPcy21iKFVYEHt3nlmSx96w": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "JoinRoomLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "CloseRoomLambdaVersionvNHG3JrwNxC8ZZLu6SLiM26ZXB0DDkVznLYUceEkhs": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "CloseRoomLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "CleanupRoomsLambdaVersionSYryfTSpap5vHizLvcqelulHmOHo9vZ1LJdV9SW8": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "CleanupRoomsLambdaFunction"
+        },
+        "CodeSha256": "FDMp7JsjFb6jBwmw1xvs7CXox133aGp6J6+FgH1JOnQ="
+      }
+    },
+    "CleanupRoomsEventsRuleSchedule1": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "ScheduleExpression": "rate(5 minutes)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "CleanupRoomsLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "cleanupRoomsSchedule"
+          }
+        ]
+      }
+    },
+    "CleanupRoomsLambdaPermissionEventsRuleSchedule1": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "CleanupRoomsLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "CleanupRoomsEventsRuleSchedule1",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "WebsocketsApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": "beta-location-chat-app-websockets",
+        "RouteSelectionExpression": "$request.body.action",
+        "Description": "Serverless Websockets",
+        "ProtocolType": "WEBSOCKET"
+      }
+    },
+    "ConnectHandlerWebsocketsIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":apigateway:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":lambda:path/2015-03-31/functions/",
+              {
+                "Fn::GetAtt": [
+                  "ConnectHandlerLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "/invocations"
+            ]
+          ]
+        }
+      }
+    },
+    "DisconnectHandlerWebsocketsIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":apigateway:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":lambda:path/2015-03-31/functions/",
+              {
+                "Fn::GetAtt": [
+                  "DisconnectHandlerLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "/invocations"
+            ]
+          ]
+        }
+      }
+    },
+    "MessageHandlerWebsocketsIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":apigateway:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":lambda:path/2015-03-31/functions/",
+              {
+                "Fn::GetAtt": [
+                  "MessageHandlerLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "/invocations"
+            ]
+          ]
+        }
+      }
+    },
+    "ConnectHandlerLambdaPermissionWebsockets": {
+      "Type": "AWS::Lambda::Permission",
+      "DependsOn": [
+        "WebsocketsApi",
+        "ConnectHandlerLambdaFunction"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ConnectHandlerLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com"
+      }
+    },
+    "DisconnectHandlerLambdaPermissionWebsockets": {
+      "Type": "AWS::Lambda::Permission",
+      "DependsOn": [
+        "WebsocketsApi",
+        "DisconnectHandlerLambdaFunction"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DisconnectHandlerLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com"
+      }
+    },
+    "MessageHandlerLambdaPermissionWebsockets": {
+      "Type": "AWS::Lambda::Permission",
+      "DependsOn": [
+        "WebsocketsApi",
+        "MessageHandlerLambdaFunction"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "MessageHandlerLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com"
+      }
+    },
+    "SconnectWebsocketsRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "RouteKey": "$connect",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "ConnectHandlerWebsocketsIntegration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "SdisconnectWebsocketsRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "RouteKey": "$disconnect",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "DisconnectHandlerWebsocketsIntegration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "SdefaultWebsocketsRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "RouteKey": "$default",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "MessageHandlerWebsocketsIntegration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "WebsocketsDeploymentStage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "StageName": "beta",
+        "Description": "Serverless Websockets",
+        "DeploymentId": {
+          "Ref": "WebsocketsDeploymentBGViI3ph0oQIEfVyGHnKx8PsYxZHtJbLbujiO1FY"
+        }
+      }
+    },
+    "WebsocketsDeploymentBGViI3ph0oQIEfVyGHnKx8PsYxZHtJbLbujiO1FY": {
+      "Type": "AWS::ApiGatewayV2::Deployment",
+      "DependsOn": [
+        "SconnectWebsocketsRoute",
+        "SdisconnectWebsocketsRoute",
+        "SdefaultWebsocketsRoute"
+      ],
+      "Properties": {
+        "ApiId": {
+          "Ref": "WebsocketsApi"
+        },
+        "Description": "Serverless Websockets"
+      }
+    },
+    "HttpApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": "beta-location-chat-app",
+        "ProtocolType": "HTTP"
+      }
+    },
+    "HttpApiStage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "StageName": "$default",
+        "AutoDeploy": true,
+        "DefaultRouteSettings": {
+          "DetailedMetricsEnabled": false
+        }
+      }
+    },
+    "CreateRoomLambdaPermissionHttpApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "CreateRoomLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "HttpApi"
+              },
+              "/*"
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiIntegrationCreateRoom": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "CreateRoomLambdaFunction",
+            "Arn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    },
+    "HttpApiRoutePostCreateDashroom": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /create-room",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationCreateRoom"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": "HttpApiIntegrationCreateRoom"
+    },
+    "SearchRoomsLambdaPermissionHttpApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "SearchRoomsLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "HttpApi"
+              },
+              "/*"
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiIntegrationSearchRooms": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "SearchRoomsLambdaFunction",
+            "Arn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    },
+    "HttpApiRouteGetSearchDashrooms": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /search-rooms",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationSearchRooms"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": "HttpApiIntegrationSearchRooms"
+    },
+    "JoinRoomLambdaPermissionHttpApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "JoinRoomLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "HttpApi"
+              },
+              "/*"
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiIntegrationJoinRoom": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "JoinRoomLambdaFunction",
+            "Arn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    },
+    "HttpApiRoutePostJoinDashroom": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /join-room",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationJoinRoom"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": "HttpApiIntegrationJoinRoom"
+    },
+    "CloseRoomLambdaPermissionHttpApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "CloseRoomLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "HttpApi"
+              },
+              "/*"
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiIntegrationCloseRoom": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "CloseRoomLambdaFunction",
+            "Arn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    },
+    "HttpApiRoutePostCloseDashroom": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /close-room",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationCloseRoom"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": "HttpApiIntegrationCloseRoom"
+    },
+    "ChatRoomsTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "location-chat-app-beta-chat-rooms",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "id",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "status",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "lastActivity",
+            "AttributeType": "N"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "id",
+            "KeyType": "HASH"
+          }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "StatusLastActivityIndex",
+            "KeySchema": [
+              {
+                "AttributeName": "status",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "lastActivity",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        }
+      }
+    },
+    "ConnectionsTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "location-chat-app-beta-connections",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "connectionId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "connectionId",
+            "KeyType": "HASH"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "UserIdIndex",
+            "KeySchema": [
+              {
+                "AttributeName": "userId",
+                "KeyType": "HASH"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        }
+      }
+    },
+    "MessagesTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "location-chat-app-beta-messages",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "roomId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "messageId",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "roomId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "messageId",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": {
+        "Ref": "ServerlessDeploymentBucket"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-ServerlessDeploymentBucketName"
+      }
+    },
+    "ConnectHandlerLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "ConnectHandlerLambdaVersioncz3bvgROoswYRwRtXfhTm0blfbDpBPHsEQI178qC1c"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-ConnectHandlerLambdaFunctionQualifiedArn"
+      }
+    },
+    "DisconnectHandlerLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "DisconnectHandlerLambdaVersionSuHxtXl7rmRs7b98SmvU6zhJydxGiwWDfqC9uT1yg"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-DisconnectHandlerLambdaFunctionQualifiedArn"
+      }
+    },
+    "MessageHandlerLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "MessageHandlerLambdaVersionTgJCaEJWv5jaol2ObTcr9hv5UZ7hhGDSzCTdudDGio"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-MessageHandlerLambdaFunctionQualifiedArn"
+      }
+    },
+    "CreateRoomLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "CreateRoomLambdaVersioniZB5tC59wmxDVrWMDCfol6EoXIPxCs5IBgeTqFM"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-CreateRoomLambdaFunctionQualifiedArn"
+      }
+    },
+    "SearchRoomsLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "SearchRoomsLambdaVersionNo8mCYt5oAUsEUIEMwmv5SLs0XIDghpCJWRKlFU"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-SearchRoomsLambdaFunctionQualifiedArn"
+      }
+    },
+    "JoinRoomLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "JoinRoomLambdaVersionr7oSXDNBI5lslcNIMldPcy21iKFVYEHt3nlmSx96w"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-JoinRoomLambdaFunctionQualifiedArn"
+      }
+    },
+    "CloseRoomLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "CloseRoomLambdaVersionvNHG3JrwNxC8ZZLu6SLiM26ZXB0DDkVznLYUceEkhs"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-CloseRoomLambdaFunctionQualifiedArn"
+      }
+    },
+    "CleanupRoomsLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "CleanupRoomsLambdaVersionSYryfTSpap5vHizLvcqelulHmOHo9vZ1LJdV9SW8"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-CleanupRoomsLambdaFunctionQualifiedArn"
+      }
+    },
+    "ServiceEndpointWebsocket": {
+      "Description": "URL of the service endpoint",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "wss://",
+            {
+              "Ref": "WebsocketsApi"
+            },
+            ".execute-api.",
+            {
+              "Ref": "AWS::Region"
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix"
+            },
+            "/beta"
+          ]
+        ]
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-ServiceEndpointWebsocket"
+      }
+    },
+    "HttpApiId": {
+      "Description": "Id of the HTTP API",
+      "Value": {
+        "Ref": "HttpApi"
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-HttpApiId"
+      }
+    },
+    "HttpApiUrl": {
+      "Description": "URL of the HTTP API",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "HttpApi"
+            },
+            ".execute-api.",
+            {
+              "Ref": "AWS::Region"
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix"
+            }
+          ]
+        ]
+      },
+      "Export": {
+        "Name": "sls-location-chat-app-beta-HttpApiUrl"
+      }
+    },
+    "WebSocketURI": {
+      "Description": "WebSocket URI",
+      "Value": {
+        "Fn::Sub": "wss://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/beta"
+      }
+    },
+    "HttpApiURI": {
+      "Description": "HTTP API URI",
+      "Value": {
+        "Fn::Sub": "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+      }
+    },
+    "ChatRoomsTableName": {
+      "Description": "Chat Rooms Table Name",
+      "Value": {
+        "Ref": "ChatRoomsTable"
+      }
+    }
+  }
+}
