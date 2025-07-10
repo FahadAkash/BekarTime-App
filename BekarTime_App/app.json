@@ -28,7 +28,7 @@
       "package": "com.fahadakash.BekarTime",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBHR-dXAEvmqVyxGTAwAZ_oWiEEVHWzBGw"
+          "apiKey": "YOUR_Android_API_KEY"
         }
       }
     },
